@@ -271,6 +271,21 @@ module ActiveRecord
         # use select to prevent extraneous fields from returning
         alias :descendant_ids :descendant_ids_dfs
 
+        # Return the number of descendants, roughly equivalent to:
+        #   descendants_bfs.count
+        # DB calls = level of tree
+        # only id field returned in query
+        def descendants_count(options={})
+          opt = options.merge(:select=>'id')
+          level_ids = child_ids
+          count = level_ids.count
+          until level_ids.empty?
+            level_ids = self.class.where(:parent_id=>level_ids).all(opt).map(&:id)
+            count += level_ids.count
+          end
+          return count
+        end
+
         def childless
           self.descendants.collect{|d| d.children.empty? ? d : nil}.compact
         end
