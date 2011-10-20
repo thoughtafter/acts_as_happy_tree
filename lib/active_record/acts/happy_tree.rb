@@ -82,6 +82,47 @@ module ActiveRecord
       end
 
       module InstanceMethods
+        
+        # Returns true if this instance has no parent (aka root node)
+        #
+        # root.root? # => true
+        # child1.root? # => false
+        # 
+        # no DB calls
+        def root?
+          parent_id.nil?
+        end
+
+        # Returns true if this instance has a parent (aka child node)
+        #
+        # root.child? # => false
+        # child1.child? # => true
+        #
+        # no DB calls
+        def child?
+          !parent_id.nil?
+        end
+
+        # returns true if this instance has any children (aka parent node)
+        #
+        # root.parent? # => true
+        # subchild1.parent? # => false
+        #
+        # 1 DB call
+        def parent?
+          children.exists?
+        end
+
+        # returns true if this instance has no children (aka leaf node)
+        #
+        # root.leaf? # => false
+        # subchild1.leaf? # => true
+        #
+        # 1 DB call
+        def leaf?
+          !children.exists?
+        end
+
         # Returns list of ancestors, starting from parent until root.
         #
         #   subchild1.ancestors # => [child1, root]
