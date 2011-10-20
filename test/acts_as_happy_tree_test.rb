@@ -249,6 +249,18 @@ class TreeTest < Test::Unit::TestCase
     assert_equal [@root_child1, @root_child2, @child1_child], @root1.descendants_bfs
   end
 
+  def test_self_and_descendants
+    assert_equal [@root1, @root_child1, @child1_child, @root_child2], @root1.self_and_descendants
+  end
+
+  def test_self_and_descendants_dfs
+    assert_equal [@root1, @root_child1, @child1_child, @root_child2], @root1.self_and_descendants_dfs
+  end
+
+  def test_self_and_descendants_bfs
+    assert_equal [@root1, @root_child1, @root_child2, @child1_child], @root1.self_and_descendants_bfs
+  end
+
   def test_descendant_ids
     assert_equal [@root_child1, @child1_child, @root_child2].map(&:id), @root1.descendant_ids
   end

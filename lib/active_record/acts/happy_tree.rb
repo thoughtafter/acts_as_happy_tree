@@ -193,6 +193,21 @@ module ActiveRecord
           nodes.compact
         end
 
+        # Return all descendants and current node, this is present for
+        # completeness with other tree implementations
+        def self_and_descendants_bfs(options={})
+          [self] + descendants_bfs(options)
+        end
+
+        # Return all descendants and current node, this is present for
+        # completeness with other tree implementations
+        def self_and_descendants_dfs(options={})
+          [self] + descendants_dfs(options)
+        end
+
+        # Use self_and_descendants_dfs for self_and_descendants
+        alias :self_and_descendants :self_and_descendants_dfs
+
         # Returns a flat list of the descendants of the current node using a
         # depth-first search http://en.wikipedia.org/wiki/Depth-first_search
         #
@@ -214,7 +229,7 @@ module ActiveRecord
 
         # Returns a flat list of the descendants of the current node using a
         # breadth-first search http://en.wikipedia.org/wiki/Breadth-first_search
-        # 
+        #
         #   root.descendants_bfs # => [child1, child2, subchild1, subchild2]
         # options can be passed such as:
         #   select - only return specified attributes, must include id
