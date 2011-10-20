@@ -203,6 +203,39 @@ class TreeTest < Test::Unit::TestCase
     assert @child1_child.leaf?
   end
   
+  def test_ancestor_of?
+    assert @root1.ancestor_of?(@root_child1)
+    assert @root1.ancestor_of?(@root_child2)
+    assert @root1.ancestor_of?(@child1_child)
+
+    assert !@root_child1.ancestor_of?(@root1)
+    assert !@root_child2.ancestor_of?(@root1)
+    assert !@child1_child.ancestor_of?(@root1)
+
+    assert !@root1.ancestor_of?(@root1)
+    assert !@root1.ancestor_of?(@root2)
+    assert !@root1.ancestor_of?(@root3)
+
+    assert @root_child1.ancestor_of?(@child1_child)
+    assert !@child1_child.ancestor_of?(@root_child1)
+  end
+
+  def test_descendant_of?
+    assert !@root1.descendant_of?(@root_child1)
+    assert !@root1.descendant_of?(@root_child2)
+    assert !@root1.descendant_of?(@child1_child)
+
+    assert @root_child1.descendant_of?(@root1)
+    assert @root_child2.descendant_of?(@root1)
+    assert @child1_child.descendant_of?(@root1)
+
+    assert !@root1.descendant_of?(@root1)
+    assert !@root1.descendant_of?(@root2)
+    assert !@root1.descendant_of?(@root3)
+
+    assert !@root_child1.descendant_of?(@child1_child)
+    assert @child1_child.descendant_of?(@root_child1)
+  end
 end
 
 class TreeTestWithCounterCache < Test::Unit::TestCase
