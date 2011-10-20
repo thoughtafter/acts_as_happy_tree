@@ -288,14 +288,27 @@ class TreeTest < Test::Unit::TestCase
     assert_equal [@child1_child].map(&:id), @root_child1.descendant_ids_bfs
   end
 
-  def test_descendants_count
-    assert_equal 3, @root1.descendants_count
-    assert_equal 0, @root2.descendants_count
-    assert_equal 0, @root3.descendants_count
-    assert_equal 1, @root_child1.descendants_count
-    assert_equal 0, @root_child2.descendants_count
-    assert_equal 0, @child1_child.descendants_count
+  def descendants_count(counter)
+    assert_equal 3, @root1.send(counter)
+    assert_equal 0, @root2.send(counter)
+    assert_equal 0, @root3.send(counter)
+    assert_equal 1, @root_child1.send(counter)
+    assert_equal 0, @root_child2.send(counter)
+    assert_equal 0, @child1_child.send(counter)
   end
+
+  def test_descendants_count
+    descendants_count(:descendants_count)
+  end
+
+  def test_descendants_count_dfs
+    descendants_count(:descendants_count_dfs)
+  end
+
+  def test_descendants_count
+    descendants_count(:descendants_count_bfs)
+  end
+
 end
 
 class TreeTestWithCounterCache < Test::Unit::TestCase
