@@ -88,9 +88,9 @@ module ActiveRecord
         # root.root? # => true
         # child1.root? # => false
         # 
-        # no DB calls
+        # 0 DB calls
         def root?
-          parent_id.nil?
+          tree_parent_key.nil?
         end
 
         # Returns true if this instance has a parent (aka child node)
@@ -98,9 +98,9 @@ module ActiveRecord
         # root.child? # => false
         # child1.child? # => true
         #
-        # no DB calls
+        # 0 DB calls
         def child?
-          !parent_id.nil?
+          !tree_parent_key.nil?
         end
 
         # returns true if this instance has any children (aka parent node)
