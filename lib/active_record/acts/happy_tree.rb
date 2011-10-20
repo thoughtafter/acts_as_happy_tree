@@ -123,6 +123,33 @@ module ActiveRecord
           !children.exists?
         end
 
+        # Returns true if this instance is an ancestor of another instance
+        #
+        # root.ancestor_of?(child1) # => true
+        # child1.ancestor_of?(root) # => false
+        #
+        # 1 DB call per level examined, only retrieves "parent_id" in each call
+        def ancestor_of?(node)
+          until node.tree_parent_key.nil? do
+            return true if node.tree_parent_key == id
+            node = self.class.where(:id=>node.tree_parent_key).select(tree_parent_key_name).first
+          end
+          return false
+        end
+
+        # Returns true if this instance is a descendant of another instance
+        #
+        # root.descendant_of?(child1) # => false
+        # child1.descendant_of?(root) # => true
+        #
+        # 1 DB call per level examined, only retrieves "parent_id" in each call
+        #
+        # calls ancestor_of? as:
+        #   node1.ancestor_of(node2) == node2.descendant_of(node1)
+        def descendant_of?(node)
+          node.ancestor_of?(self)
+        end
+
         # Returns list of ancestors, starting from parent until root.
         #
         #   subchild1.ancestors # => [child1, root]
