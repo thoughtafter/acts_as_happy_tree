@@ -193,6 +193,49 @@ module ActiveRecord
           nodes.compact
         end
 
+        # Returns a flat list of the descendants of the current node using a
+        # depth-first search http://en.wikipedia.org/wiki/Depth-first_search
+        #
+        # root.descendants_dfs # => [child1, subchild1, subchild2, child2]
+        # options can be passed such as:
+        #   select - only return specified attributes, must include "parent_id"
+        #   conditions - only return matching objects, will not return children
+        #                of any unmatched objects
+        #   order - will set the order of each set of children
+        #   limit - will limit max number of children for each parent
+        #
+        # this is a recursive method
+        # the number of DB calls == number of descendants + 1
+        def descendants_dfs(options={})
+          children.all(options).map do |child|
+            [child] + child.descendants_dfs(options)
+          end.flatten
+        end
+
+        # Returns a flat list of the descendants of the current node using a
+        # breadth-first search http://en.wikipedia.org/wiki/Breadth-first_search
+        # 
+        #   root.descendants_bfs # => [child1, child2, subchild1, subchild2]
+        # options can be passed such as:
+        #   select - only return specified attributes, must include id
+        #   conditions - only return matching objects, will not return children
+        #                of any unmatched objects
+        #   order - will set the order of each set of children
+        #   limit - will limit max number of children for each parent
+        #
+        # number of DB calls == number of levels
+        # for the example there will be 3 DB calls
+        def descendants_bfs(options={})
+          level_children = children.all(options)
+          all_descendants = level_children
+          until level_children.empty?
+            ids = level_children.map{|node| node.id}
+            level_children = self.class.where(:parent_id=>ids).all(options)
+            all_descendants += level_children
+          end
+          all_descendants
+        end
+
         def childless
           self.descendants.collect{|d| d.children.empty? ? d : nil}.compact
         end
