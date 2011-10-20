@@ -4,11 +4,11 @@ require 'rake'
 begin
   require 'jeweler'
   Jeweler::Tasks.new do |gem|
-    gem.name = "acts_as_tree"
-    gem.summary = %Q{acts_as_tree as a gem}
-    gem.description = %Q{acts_as_tree as a gem}
+    gem.name = "acts_as_happy_tree"
+    gem.summary = %Q{acts_as_happy_tree as a gem}
+    gem.description = %Q{acts_as_happy_tree as a gem}
     gem.email = "jim@saturnflyer.com"
-    gem.homepage = "http://github.com/saturnflyer/acts_as_tree"
+    gem.homepage = "http://github.com/saturnflyer/acts_as_happy_tree"
     gem.authors = ["David Heinemeier Hansson",'and others']
     # gem.add_development_dependency "thoughtbot-shoulda"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
@@ -50,7 +50,7 @@ Rake::RDocTask.new do |rdoc|
   end
 
   rdoc.rdoc_dir = 'rdoc'
-  rdoc.title = "acts_as_tree #{version}"
+  rdoc.title = "acts_as_happy_tree #{version}"
   rdoc.rdoc_files.include('README*')
   rdoc.rdoc_files.include('lib/**/*.rb')
 end

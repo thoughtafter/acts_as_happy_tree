@@ -45,24 +45,24 @@ class Mixin < ActiveRecord::Base
 end
 
 class TreeMixin < Mixin 
-  acts_as_tree :foreign_key => "parent_id", :order => "id"
+  acts_as_happy_tree :foreign_key => "parent_id", :order => "id"
 end
 
 class TreeMixinWithCounterCache < Mixin
-  acts_as_tree :foreign_key => "parent_id", :order => "id", :counter_cache => :children_count
+  acts_as_happy_tree :foreign_key => "parent_id", :order => "id", :counter_cache => :children_count
 end
 
 class TreeMixinWithoutOrder < Mixin
-  acts_as_tree :foreign_key => "parent_id"
+  acts_as_happy_tree :foreign_key => "parent_id"
 end
 
 class RecursivelyCascadedTreeMixin < Mixin
-  acts_as_tree :foreign_key => "parent_id"
+  acts_as_happy_tree :foreign_key => "parent_id"
   has_one :first_child, :class_name => 'RecursivelyCascadedTreeMixin', :foreign_key => :parent_id
 end
 
 class TreeMixinNullify < Mixin
-  acts_as_tree :foreign_key => "parent_id", :order => "id", :dependent => :nullify
+  acts_as_happy_tree :foreign_key => "parent_id", :order => "id", :dependent => :nullify
 end
 
 class TreeTest < Test::Unit::TestCase

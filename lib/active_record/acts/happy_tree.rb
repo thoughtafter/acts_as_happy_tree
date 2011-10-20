@@ -1,6 +1,6 @@
 module ActiveRecord
   module Acts
-    module Tree
+    module HappyTree
       def self.included(base)
         base.extend(ClassMethods)
       end
@@ -9,7 +9,7 @@ module ActiveRecord
       # association. This requires that you have a foreign key column, which by default is called +parent_id+.
       #
       #   class Category < ActiveRecord::Base
-      #     acts_as_tree :order => "name"
+      #     acts_as_happy_tree :order => "name"
       #   end
       #
       #   Example:
@@ -28,7 +28,7 @@ module ActiveRecord
       #   root.children.first.children.first # => subchild1
       #
       # In addition to the parent and children associations, the following instance methods are added to the class
-      # after calling <tt>acts_as_tree</tt>:
+      # after calling <tt>acts_as_happy_tree</tt>:
       # * <tt>siblings</tt> - Returns all the children of the parent, excluding the current node (<tt>[subchild2]</tt> when called on <tt>subchild1</tt>)
       # * <tt>self_and_siblings</tt> - Returns all the children of the parent, including the current node (<tt>[subchild1, subchild2]</tt> when called on <tt>subchild1</tt>)
       # * <tt>ancestors</tt> - Returns all the ancestors of the current node (<tt>[child1, root]</tt> when called on <tt>subchild2</tt>)
@@ -40,7 +40,7 @@ module ActiveRecord
         # * <tt>foreign_key</tt> - specifies the column name to use for tracking of the tree (default: +parent_id+)
         # * <tt>order</tt> - makes it possible to sort the children according to this SQL snippet.
         # * <tt>counter_cache</tt> - keeps a count in a +children_count+ column if set to +true+ (default: +false+).
-        def acts_as_tree(options = {})
+        def acts_as_happy_tree(options = {})
           configuration = { :foreign_key => "parent_id", :order => nil, :counter_cache => nil, :dependent => :destroy, :touch => false }
           configuration.update(options) if options.is_a?(Hash)
 
@@ -48,7 +48,7 @@ module ActiveRecord
           has_many :children, :class_name => name, :foreign_key => configuration[:foreign_key], :order => configuration[:order], :dependent => configuration[:dependent]
 
           class_eval <<-EOV
-            include ActiveRecord::Acts::Tree::InstanceMethods
+            include ActiveRecord::Acts::HappyTree::InstanceMethods
             
             named_scope :roots, :conditions => "#{configuration[:foreign_key]} IS NULL", :order => #{configuration[:order].nil? ? "nil" : %Q{"#{configuration[:order]}"}}
             
