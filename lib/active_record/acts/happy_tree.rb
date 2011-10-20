@@ -241,10 +241,10 @@ module ActiveRecord
         # number of DB calls == number of levels
         # for the example there will be 3 DB calls
         def descendants_bfs(options={})
-          level_children = children.all(options)
-          all_descendants = level_children
+          level_children = [self]
+          all_descendants = []
           until level_children.empty?
-            ids = level_children.map{|node| node.id}
+            ids = level_children.map(&:id)
             level_children = self.class.where(:parent_id=>ids).all(options)
             all_descendants += level_children
           end
@@ -256,7 +256,7 @@ module ActiveRecord
         # DB calls = number of descendants + 1
         # only id field returned in query
         def descendant_ids_dfs(options={})
-          descendants_dfs(options.merge(:select=>'id')).map{|node| node.id}
+          descendants_dfs(options.merge(:select=>'id')).map(&:id)
         end
 
         # Returns a flat list of the descendant ids of the current node using a
@@ -264,7 +264,7 @@ module ActiveRecord
         # DB calls = level of tree
         # only id field returned in query
         def descendant_ids_bfs(options={})
-          descendants_bfs(options.merge(:select=>'id')).map{|node| node.id}
+          descendants_bfs(options.merge(:select=>'id')).map(&:id)
         end
 
         # Use descendant_ids_dfs for descendant_ids because of ability to
@@ -274,17 +274,31 @@ module ActiveRecord
         # Return the number of descendants, roughly equivalent to:
         #   descendants_bfs.count
         # DB calls = level of tree
-        # only id field returned in query
-        def descendants_count(options={})
-          opt = options.merge(:select=>'id')
-          level_ids = child_ids
-          count = level_ids.count
+        # only id field selected in query
+        def descendants_count_bfs(options={})
+          level_ids = [id]
+          count = 0
           until level_ids.empty?
-            level_ids = self.class.where(:parent_id=>level_ids).all(opt).map(&:id)
+            nodes = self.class.where(:parent_id=>level_ids)
+            level_ids = nodes.all(options.merge(:select=>'id')).map(&:id)
             count += level_ids.count
           end
           return count
         end
+
+        # Return the number of descendants, roughly equivalent to:
+        #   descendants_dfs.count
+        # DB calls = # of descendants + 1
+        # only id field selected in query
+        def descendants_count_dfs(options={})
+          children.all(options.merge(:select=>'id')).reduce(0) do |count, child|
+            count += 1 + child.descendants_count_dfs(options)
+          end
+        end
+
+        # Use descendants_count_bfs for descendants_count because it should use
+        # fewer SQL queries and thus be faster
+        alias :descendants_count :descendants_count_bfs
 
         def childless
           self.descendants.collect{|d| d.children.empty? ? d : nil}.compact
