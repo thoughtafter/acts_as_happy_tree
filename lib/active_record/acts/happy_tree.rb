@@ -236,6 +236,26 @@ module ActiveRecord
           all_descendants
         end
 
+        # Returns a flat list of the descendant ids of the current node using a
+        # depth-first search http://en.wikipedia.org/wiki/Depth-first_search
+        # DB calls = number of descendants + 1
+        # only id field returned in query
+        def descendant_ids_dfs(options={})
+          descendants_dfs(options.merge(:select=>'id')).map{|node| node.id}
+        end
+
+        # Returns a flat list of the descendant ids of the current node using a
+        # breadth-first search http://en.wikipedia.org/wiki/Breadth-first_search
+        # DB calls = level of tree
+        # only id field returned in query
+        def descendant_ids_bfs(options={})
+          descendants_bfs(options.merge(:select=>'id')).map{|node| node.id}
+        end
+
+        # Use descendant_ids_dfs for descendant_ids because of ability to
+        # use select to prevent extraneous fields from returning
+        alias :descendant_ids :descendant_ids_dfs
+
         def childless
           self.descendants.collect{|d| d.children.empty? ? d : nil}.compact
         end
