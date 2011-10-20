@@ -166,6 +166,42 @@ class TreeTest < Test::Unit::TestCase
     assert_equal [@root1, @root2, @root3], @root2.self_and_siblings
     assert_equal [@root1, @root2, @root3], @root3.self_and_siblings
   end
+
+  def test_root?
+    assert @root1.root?
+    assert @root2.root?
+    assert @root3.root?
+    assert !@root_child1.root?
+    assert !@root_child2.root?
+    assert !@child1_child.root?
+  end
+
+  def test_child?
+    assert !@root1.child?
+    assert !@root2.child?
+    assert !@root3.child?
+    assert @root_child1.child?
+    assert @root_child2.child?
+    assert @child1_child.child?
+  end
+
+  def test_parent?
+    assert @root1.parent?
+    assert !@root2.parent?
+    assert !@root3.parent?
+    assert @root_child1.parent?
+    assert !@root_child2.parent?
+    assert !@child1_child.parent?
+  end
+
+  def test_leaf?
+    assert !@root1.leaf?
+    assert @root2.leaf?
+    assert @root3.leaf?
+    assert !@root_child1.leaf?
+    assert @root_child2.leaf?
+    assert @child1_child.leaf?
+  end
   
 end
 
