@@ -236,6 +236,18 @@ class TreeTest < Test::Unit::TestCase
     assert !@root_child1.descendant_of?(@child1_child)
     assert @child1_child.descendant_of?(@root_child1)
   end
+
+  def test_descendants
+    assert_equal [@root_child1, @child1_child, @root_child2], @root1.descendants
+  end
+
+  def test_descendants_dfs
+    assert_equal [@root_child1, @child1_child, @root_child2], @root1.descendants_dfs
+  end
+
+  def test_descendants
+    assert_equal [@root_child1, @root_child2, @child1_child], @root1.descendants_bfs
+  end
 end
 
 class TreeTestWithCounterCache < Test::Unit::TestCase
