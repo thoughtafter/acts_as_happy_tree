@@ -49,11 +49,11 @@ module ActiveRecord
 
           class_eval <<-EOV
             include ActiveRecord::Acts::HappyTree::InstanceMethods
-            
+
             scope :roots, :conditions => "#{configuration[:foreign_key]} IS NULL", :order => #{configuration[:order].nil? ? "nil" : %Q{"#{configuration[:order]}"}}
-            
+
             after_update :update_parents_counter_cache
-            
+
             def self.root
               roots.first
             end
@@ -67,7 +67,7 @@ module ActiveRecord
 
               nodes
             end
-            
+
             validates_each "#{configuration[:foreign_key]}" do |record, attr, value|
               if value
                 if record.id == value
@@ -82,12 +82,12 @@ module ActiveRecord
       end
 
       module InstanceMethods
-        
+
         # Returns true if this instance has no parent (aka root node)
         #
         # root.root? # => true
         # child1.root? # => false
-        # 
+        #
         # 0 DB calls
         def root?
           tree_parent_key.nil?
@@ -184,20 +184,20 @@ module ActiveRecord
         def descendants(node=self)
           nodes = []
           nodes << node unless node == self
-          
+
           node.children.each do |child|
             nodes += descendants(child)
           end
-            
+
           nodes.compact
         end
-        
+
         def childless
           self.descendants.collect{|d| d.children.empty? ? d : nil}.compact
         end
 
       private
-      
+
         def update_parents_counter_cache
           if self.respond_to?(:children_count) && parent_id_changed?
             self.class.decrement_counter(:children_count, parent_id_was)
