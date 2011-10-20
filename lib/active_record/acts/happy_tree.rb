@@ -50,7 +50,7 @@ module ActiveRecord
           class_eval <<-EOV
             include ActiveRecord::Acts::HappyTree::InstanceMethods
             
-            named_scope :roots, :conditions => "#{configuration[:foreign_key]} IS NULL", :order => #{configuration[:order].nil? ? "nil" : %Q{"#{configuration[:order]}"}}
+            scope :roots, :conditions => "#{configuration[:foreign_key]} IS NULL", :order => #{configuration[:order].nil? ? "nil" : %Q{"#{configuration[:order]}"}}
             
             after_update :update_parents_counter_cache
             
