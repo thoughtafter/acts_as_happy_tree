@@ -17,6 +17,7 @@ module ActiveRecord
       #    \_ child1
       #         \_ subchild1
       #         \_ subchild2
+      #    \_ child2
       #
       #   root      = Category.create("name" => "root")
       #   child1    = root.children.create("name" => "child1")
@@ -108,7 +109,7 @@ module ActiveRecord
         # root.parent? # => true
         # subchild1.parent? # => false
         #
-        # 1 DB call
+        # 1 DB call, no fields retrived
         def parent?
           children.exists?
         end
@@ -118,7 +119,7 @@ module ActiveRecord
         # root.leaf? # => false
         # subchild1.leaf? # => true
         #
-        # 1 DB call
+        # 1 DB call, no fields retrived
         def leaf?
           !children.exists?
         end
