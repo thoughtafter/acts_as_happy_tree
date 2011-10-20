@@ -75,6 +75,7 @@ class TreeTest < Test::Unit::TestCase
     @root_child2 = TreeMixin.create! :parent_id => @root1.id
     @root2 = TreeMixin.create!
     @root3 = TreeMixin.create!
+    @root_child1.reload # need to reload to recognize children
   end
 
   def teardown
@@ -237,40 +238,63 @@ class TreeTest < Test::Unit::TestCase
     assert @child1_child.descendant_of?(@root_child1)
   end
 
+  def test_child_ids
+    assert_equal [@root_child1.id, @root_child2.id], @root1.child_ids
+    assert_equal [@child1_child.id], @root_child1.child_ids
+  end
+
   def test_descendants
     assert_equal [@root_child1, @child1_child, @root_child2], @root1.descendants
+    assert_equal [@child1_child], @root_child1.descendants
   end
 
   def test_descendants_dfs
     assert_equal [@root_child1, @child1_child, @root_child2], @root1.descendants_dfs
+    assert_equal [@child1_child], @root_child1.descendants_dfs
   end
 
   def test_descendants_bfs
     assert_equal [@root_child1, @root_child2, @child1_child], @root1.descendants_bfs
+    assert_equal [@child1_child], @root_child1.descendants_bfs
   end
 
   def test_self_and_descendants
     assert_equal [@root1, @root_child1, @child1_child, @root_child2], @root1.self_and_descendants
+    assert_equal [@root_child1, @child1_child], @root_child1.self_and_descendants
   end
 
   def test_self_and_descendants_dfs
     assert_equal [@root1, @root_child1, @child1_child, @root_child2], @root1.self_and_descendants_dfs
+    assert_equal [@root_child1, @child1_child], @root_child1.self_and_descendants_dfs
   end
 
   def test_self_and_descendants_bfs
     assert_equal [@root1, @root_child1, @root_child2, @child1_child], @root1.self_and_descendants_bfs
+    assert_equal [@root_child1, @child1_child], @root_child1.self_and_descendants_bfs
   end
 
   def test_descendant_ids
     assert_equal [@root_child1, @child1_child, @root_child2].map(&:id), @root1.descendant_ids
+    assert_equal [@child1_child].map(&:id), @root_child1.descendant_ids
   end
 
   def test_descendant_ids_dfs
     assert_equal [@root_child1, @child1_child, @root_child2].map(&:id), @root1.descendant_ids_dfs
+    assert_equal [@child1_child].map(&:id), @root_child1.descendant_ids_dfs
   end
 
   def test_descendant_ids_bfs
     assert_equal [@root_child1, @root_child2, @child1_child].map(&:id), @root1.descendant_ids_bfs
+    assert_equal [@child1_child].map(&:id), @root_child1.descendant_ids_bfs
+  end
+
+  def test_descendants_count
+    assert_equal 3, @root1.descendants_count
+    assert_equal 0, @root2.descendants_count
+    assert_equal 0, @root3.descendants_count
+    assert_equal 1, @root_child1.descendants_count
+    assert_equal 0, @root_child2.descendants_count
+    assert_equal 0, @child1_child.descendants_count
   end
 end
 
