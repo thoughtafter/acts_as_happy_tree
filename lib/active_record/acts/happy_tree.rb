@@ -177,6 +177,17 @@ module ActiveRecord
             self.class.increment_counter(:children_count, parent_id)
           end
         end
+
+      protected
+
+        def tree_parent_key_name
+          reflections[:parent].options[:foreign_key]
+        end
+
+        def tree_parent_key
+          attributes[tree_parent_key_name]
+        end
+
       end
     end
   end
