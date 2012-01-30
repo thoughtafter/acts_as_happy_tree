@@ -141,14 +141,35 @@ class TreeTest < Test::Unit::TestCase
     assert_equal [], @root3.ancestors
   end
 
-  def test_root
+  def test_ancestor_ids
+    assert_equal [], @root1.ancestor_ids
+    assert_equal [@root1.id], @root_child1.ancestor_ids
+    assert_equal [@root_child1.id, @root1.id], @child1_child.ancestor_ids
+    assert_equal [@root1.id], @root_child2.ancestor_ids
+    assert_equal [], @root2.ancestor_ids
+    assert_equal [], @root3.ancestor_ids
+  end
+
+  def test_class_root
     assert_equal @root1, TreeMixin.root
+  end
+
+  def test_root
     assert_equal @root1, @root1.root
     assert_equal @root1, @root_child1.root
     assert_equal @root1, @child1_child.root
     assert_equal @root1, @root_child2.root
     assert_equal @root2, @root2.root
     assert_equal @root3, @root3.root
+  end
+
+  def test_root_id
+    assert_equal @root1.id, @root1.root_id
+    assert_equal @root1.id, @root_child1.root_id
+    assert_equal @root1.id, @child1_child.root_id
+    assert_equal @root1.id, @root_child2.root_id
+    assert_equal @root2.id, @root2.root_id
+    assert_equal @root3.id, @root3.root_id
   end
 
   def test_roots
