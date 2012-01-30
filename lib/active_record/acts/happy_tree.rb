@@ -17,7 +17,6 @@ module ActiveRecord
       #    \_ child1
       #         \_ subchild1
       #         \_ subchild2
-      #    \_ child2
       #
       #   root      = Category.create("name" => "root")
       #   child1    = root.children.create("name" => "child1")
@@ -48,6 +47,8 @@ module ActiveRecord
           belongs_to :parent, :class_name => name, :foreign_key => configuration[:foreign_key], :counter_cache => configuration[:counter_cache], :touch => configuration[:touch]
           has_many :children, :class_name => name, :foreign_key => configuration[:foreign_key], :order => configuration[:order], :dependent => configuration[:dependent]
 
+          validate :parent_key_must_be_valid
+
           class_eval <<-EOV
             include ActiveRecord::Acts::HappyTree::InstanceMethods
             include ActiveRecord::Acts::HappyTree::BreadthFirst
@@ -73,16 +74,6 @@ module ActiveRecord
 
             def self.parent_key
               "#{configuration[:foreign_key]}"
-            end
-
-            validates_each "#{configuration[:foreign_key]}" do |record, attr, value|
-              if value
-                if record.id == value
-                  record.errors.add attr, "cannot be it's own id"
-                elsif record.descendants.map {|c| c.id}.include?(value)
-                  record.errors.add attr, "cannot be a descendant's id"
-                end
-              end
             end
           EOV
         end
@@ -120,7 +111,6 @@ module ActiveRecord
       end
 
       module InstanceMethods
-
         # Returns list of ancestors, starting from parent until root.
         #
         #   subchild1.ancestors # => [child1, root]
@@ -152,12 +142,12 @@ module ActiveRecord
         # Returns a flat list of the descendants of the current node.
         #
         #   root.descendants # => [child1, subchild1, subchild2]
-        def descendants(node=self)
+        def descendants_classic(node=self)
           nodes = []
           nodes << node unless node == self
 
           node.children.each do |child|
-            nodes += descendants(child)
+            nodes += descendants_classic(child)
           end
 
           nodes.compact
@@ -215,10 +205,14 @@ module ActiveRecord
         # 1 DB SELECT per level examined, only selects "parent_id"
         # AR <  3.2 = 1 AR object per level examined
         # AR >= 3.2 = no AR objects
+        #
+        # equivalent of node.descendant_of?(self)
+        # node1.ancestor_of(node2) == node2.descendant_of(node1)
         def ancestor_of?(node)
+          return false if (node.nil? || !node.is_a?(self.class))
           key = node.tree_parent_key
           until key.nil? do
-            return true if key == id
+            return true if key == self.id
             key = self.class.parent_id_of(key)
           end
           return false
@@ -229,17 +223,23 @@ module ActiveRecord
         # root.descendant_of?(child1) # => false
         # child1.descendant_of?(root) # => true
         #
-        # calls ancestor_of? as:
-        #   node1.ancestor_of(node2) == node2.descendant_of(node1)
-        #
-        # same performance of ancestor_of?
+        # same performance as ancestor_of?
+        # 
+        # equivalent of node.ancestor_of?(self)
+        # node1.descendant_of(node2) == node2.ancestor_of(node1)
         def descendant_of?(node)
-          node.ancestor_of?(self)
+          return false if (node.nil? || !node.is_a?(self.class))
+          key = self.tree_parent_key
+          until key.nil? do
+            return true if key == node.id
+            key = self.class.parent_id_of(key)
+          end
+          return false
         end
 
         # Returns list of ancestor ids, starting from parent until root.
         #
-        #   subchild1.ancestors # => [child1.id, root.id]
+        #   subchild1.ancestor_ids # => [child1.id, root.id]
         #
         # 1 DB SELECT per ancestor, only selects "parent_id"
         # AR <  3.2 = 1 AR object per ancestor
@@ -253,15 +253,30 @@ module ActiveRecord
           return node_ids
         end
 
+        # Returns a count of the number of ancestors
+        #
+        #   subchild1.ancestors_count # => 2
+        #
+        # 1 DB SELECT per ancestor, only selects "parent_id"
+        # AR <  3.2 = 1 AR object per ancestor
+        # AR >= 3.2 = 0 AR objects
+        def ancestors_count
+          key, count = tree_parent_key, 0
+          until key.nil? do
+            count += 1
+            key = self.class.parent_id_of(key)
+          end
+          return count
+        end
+
         # Returns the root id of the current node
         # no DB access if node is root
         # otherwise use root_id function which is optimized
         # 1 DB SELECT per ancestor, only selects "parent_id"
         # AR <  3.2 = 1 AR object per ancestor
-        # AR >= 3.2 = 1 AR object total
+        # AR >= 3.2 = 0 AR objects
         def root_id
-          node_id = id
-          key = tree_parent_key
+          key, node_id = tree_parent_key, id
           until key.nil? do
             node_id = key
             key = self.class.parent_id_of(key)
@@ -272,29 +287,73 @@ module ActiveRecord
         # Returns the root node of the current node
         # no DB access if node is root
         # otherwise use root_id function which is optimized
-        # same performance as root_id
+        # performance = root_id + 1 DB SELECT and 1 AR object if not root
         # other acts_as_tree variants select all fields and instantiate all objects
         def root
           root? ? self : self.class.find(root_id)
         end
 
+        # helper method to allow the choosing of the descendants traversal
+        # method by setting :traversal option as follows:
+        #
+        # :classic - depth-first search, recursive
+        #          - only for descendants, ignores finder options
+        # :dfs - depth-first search, iterative
+        # :dfs_rec - depth-first search, recursive
+        # :bfs - breadth-first search, interative
+        # :bfs_rec - breadth-first search, recursive
+        def descendants_call(method, default, options={})
+          traversal = options.delete(:traversal)
+          case traversal
+          when :classic
+            send("#{method}_classic")
+          when :bfs, :dfs, :bfs_rec, :dfs_rec
+            send("#{method}_#{traversal}", options)
+          else
+            send("#{method}_#{default}", options)
+          end
+        end
+
+        # returns all of the descendants
+        # uses iterative method in DFS order by default
+        # options are finder options
+        def descendants(options={})
+          descendants_call(:descendants, :dfs, options)
+        end
+
         # return self and descendants
         # provided for compatibility with other tree implementations
-        # expected order is DFS
+        # uses iterative method in DFS order by default
+        # options are finder options
         def self_and_descendants(options={})
-          self_and_descendants_dfs(options)
+          descendants_call(:self_and_descendants, :dfs, options)
         end
 
         # return an array of descendant ids
-        # expected order is DFS
+        # uses iterative method in DFS order by default
+        # options are finder options
         def descendant_ids(options={})
-          descendant_ids_dfs(options)
+          descendants_call(:descendant_ids, :dfs, options)
         end
 
+        # return a count of the number of descendants
         # Use BFS for descendants_count because it should use fewer SQL queries
         # and thus be faster
+        # options are finder options
         def descendants_count(options={})
-          descendants_count_bfs(options)
+          descendants_call(:descendants_count, :bfs, options)
+        end
+
+        # method for validating parent_key to make sure it is not
+        # 1) the same as id
+        # 2) already a descendant of the current node
+        def parent_key_must_be_valid
+          return if id.nil?
+          if (tree_parent_key==id)
+            errors.add(tree_parent_key_name, "#{tree_parent_key_name} cannot be the same as id")
+          elsif ancestor_of?(parent)
+            errors.add(tree_parent_key_name, "#{tree_parent_key_name} cannot be a descendant")
+          end
         end
 
       private

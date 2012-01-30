@@ -150,6 +150,15 @@ class TreeTest < Test::Unit::TestCase
     assert_equal [], @root3.ancestor_ids
   end
 
+  def test_ancestors_count
+    assert_equal 0, @root1.ancestors_count
+    assert_equal 1, @root_child1.ancestors_count
+    assert_equal 2, @child1_child.ancestors_count
+    assert_equal 1, @root_child2.ancestors_count
+    assert_equal 0, @root2.ancestors_count
+    assert_equal 0, @root3.ancestors_count
+  end
+
   def test_class_root
     assert_equal @root1, TreeMixin.root
   end
@@ -231,37 +240,57 @@ class TreeTest < Test::Unit::TestCase
   end
 
   def test_ancestor_of?
-    assert @root1.ancestor_of?(@root_child1)
-    assert @root1.ancestor_of?(@root_child2)
-    assert @root1.ancestor_of?(@child1_child)
+    assert_equal false, @root1.ancestor_of?(nil)
+    assert_equal false, @root_child1.ancestor_of?(nil)
+    assert_equal false, @root_child2.ancestor_of?(nil)
+    assert_equal false, @child1_child.ancestor_of?(nil)
 
-    assert !@root_child1.ancestor_of?(@root1)
-    assert !@root_child2.ancestor_of?(@root1)
-    assert !@child1_child.ancestor_of?(@root1)
+    assert_equal false, @root1.ancestor_of?(0)
+    assert_equal false, @root_child1.ancestor_of?("foo")
+    assert_equal false, @root_child2.ancestor_of?(:bar)
+    assert_equal false, @child1_child.ancestor_of?(TreeMixin.new)
 
-    assert !@root1.ancestor_of?(@root1)
-    assert !@root1.ancestor_of?(@root2)
-    assert !@root1.ancestor_of?(@root3)
+    assert_equal true, @root1.ancestor_of?(@root_child1)
+    assert_equal true, @root1.ancestor_of?(@root_child2)
+    assert_equal true, @root1.ancestor_of?(@child1_child)
 
-    assert @root_child1.ancestor_of?(@child1_child)
-    assert !@child1_child.ancestor_of?(@root_child1)
+    assert_equal false, @root_child1.ancestor_of?(@root1)
+    assert_equal false, @root_child2.ancestor_of?(@root1)
+    assert_equal false, @child1_child.ancestor_of?(@root1)
+
+    assert_equal false, @root1.ancestor_of?(@root1)
+    assert_equal false, @root1.ancestor_of?(@root2)
+    assert_equal false, @root1.ancestor_of?(@root3)
+
+    assert_equal true, @root_child1.ancestor_of?(@child1_child)
+    assert_equal false, @child1_child.ancestor_of?(@root_child1)
   end
 
   def test_descendant_of?
-    assert !@root1.descendant_of?(@root_child1)
-    assert !@root1.descendant_of?(@root_child2)
-    assert !@root1.descendant_of?(@child1_child)
+    assert_equal false, @root1.descendant_of?(nil)
+    assert_equal false, @root_child1.descendant_of?(nil)
+    assert_equal false, @root_child2.descendant_of?(nil)
+    assert_equal false, @child1_child.descendant_of?(nil)
 
-    assert @root_child1.descendant_of?(@root1)
-    assert @root_child2.descendant_of?(@root1)
-    assert @child1_child.descendant_of?(@root1)
+    assert_equal false, @root1.descendant_of?(0)
+    assert_equal false, @root_child1.descendant_of?("foo")
+    assert_equal false, @root_child2.descendant_of?(:bar)
+    assert_equal false, @child1_child.descendant_of?(TreeMixin.new)
 
-    assert !@root1.descendant_of?(@root1)
-    assert !@root1.descendant_of?(@root2)
-    assert !@root1.descendant_of?(@root3)
+    assert_equal false, @root1.descendant_of?(@root_child1)
+    assert_equal false, @root1.descendant_of?(@root_child2)
+    assert_equal false, @root1.descendant_of?(@child1_child)
 
-    assert !@root_child1.descendant_of?(@child1_child)
-    assert @child1_child.descendant_of?(@root_child1)
+    assert_equal true, @root_child1.descendant_of?(@root1)
+    assert_equal true, @root_child2.descendant_of?(@root1)
+    assert_equal true, @child1_child.descendant_of?(@root1)
+
+    assert_equal false, @root1.descendant_of?(@root1)
+    assert_equal false, @root1.descendant_of?(@root2)
+    assert_equal false, @root1.descendant_of?(@root3)
+
+    assert_equal false, @root_child1.descendant_of?(@child1_child)
+    assert_equal true, @child1_child.descendant_of?(@root_child1)
   end
 
   def test_child_ids
@@ -269,34 +298,43 @@ class TreeTest < Test::Unit::TestCase
     assert_equal [@child1_child.id], @root_child1.child_ids
   end
 
-  def do_test_descendants_dfs(method)
-    assert_equal [@root_child1, @child1_child, @root_child2], @root1.send(method)
-    assert_equal [@child1_child], @root_child1.send(method)
+  def do_test_descendants_dfs(method, *args)
+    assert_equal [@root_child1, @child1_child, @root_child2], @root1.send(method, *args)
+    assert_equal [@child1_child], @root_child1.send(method, *args)
   end
 
   def test_descendants
     do_test_descendants_dfs('descendants')
   end
 
+  def test_descendants_classic
+    do_test_descendants_dfs('descendants_classic')
+    do_test_descendants_dfs('descendants', :traversal=>:classic)
+  end
+
   def test_descendants_dfs
     do_test_descendants_dfs('descendants_dfs')
+    do_test_descendants_dfs('descendants', :traversal=>:dfs)
   end
 
   def test_descendants_dfs_rec
     do_test_descendants_dfs('descendants_dfs_rec')
+    do_test_descendants_dfs('descendants', :traversal=>:dfs_rec)
   end
 
-  def do_test_descendants_bfs(method)
-    assert_equal [@root_child1, @root_child2, @child1_child], @root1.send(method)
-    assert_equal [@child1_child], @root_child1.send(method)
+  def do_test_descendants_bfs(method, *params)
+    assert_equal [@root_child1, @root_child2, @child1_child], @root1.send(method, *params)
+    assert_equal [@child1_child], @root_child1.send(method, *params)
   end
 
   def test_descendants_bfs
     do_test_descendants_bfs('descendants_bfs')
+    do_test_descendants_bfs('descendants', :traversal=>:bfs)
   end
 
   def test_descendants_bfs_rec
     do_test_descendants_bfs('descendants_bfs_rec')
+    do_test_descendants_bfs('descendants', :traversal=>:bfs_rec)
   end
 
   def do_test_self_and_descendants_dfs(method)
@@ -336,7 +374,7 @@ class TreeTest < Test::Unit::TestCase
   end
 
   def do_test_descendant_ids_bfs(method)
-    assert_equal [@root_child1, @root_child2, @child1_child].map(&:id), 
+    assert_equal [@root_child1, @root_child2, @child1_child].map(&:id),
       @root1.send(method)
     assert_equal [@child1_child].map(&:id), @root_child1.send(method)
   end
@@ -349,7 +387,7 @@ class TreeTest < Test::Unit::TestCase
     do_test_descendant_ids_bfs('descendant_ids_bfs_rec')
   end
 
-  def descendants_count(counter)
+  def do_test_descendants_count(counter)
     assert_equal 3, @root1.send(counter)
     assert_equal 0, @root2.send(counter)
     assert_equal 0, @root3.send(counter)
@@ -359,23 +397,23 @@ class TreeTest < Test::Unit::TestCase
   end
 
   def test_descendants_count
-    descendants_count(:descendants_count)
+    do_test_descendants_count(:descendants_count)
   end
 
   def test_descendants_count_dfs
-    descendants_count(:descendants_count_dfs)
+    do_test_descendants_count(:descendants_count_dfs)
   end
 
   def test_descendants_count_bfs
-    descendants_count(:descendants_count_bfs)
+    do_test_descendants_count(:descendants_count_bfs)
   end
 
   def test_descendants_count_dfs_rec
-    descendants_count(:descendants_count_dfs_rec)
+    do_test_descendants_count(:descendants_count_dfs_rec)
   end
 
   def test_descendants_count_bfs_rec
-    descendants_count(:descendants_count_bfs_rec)
+    do_test_descendants_count(:descendants_count_bfs_rec)
   end
 end
 
