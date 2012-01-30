@@ -20,9 +20,26 @@ end
 require 'rake/testtask'
 Rake::TestTask.new(:test) do |test|
   test.libs << 'lib' << 'test'
-  test.pattern = 'test/**/*_test.rb'
+  test.test_files = FileList['test/*_test.rb']
   test.verbose = true
 end
+
+task 'test:ar30' do
+  ENV['AR_VERSION'] = '3.0.10'
+  Rake::Task["test"].execute
+end
+
+task 'test:ar31' do
+  ENV['AR_VERSION'] = '3.1.2'
+  Rake::Task["test"].execute
+end
+
+task 'test:ar32' do
+  ENV['AR_VERSION'] = '3.2.1'
+  Rake::Task["test"].execute
+end
+
+task 'test:all' => ['test:ar32', 'test:ar31', 'test:ar30']
 
 begin
   require 'rcov/rcovtask'

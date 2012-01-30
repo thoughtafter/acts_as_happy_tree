@@ -1,7 +1,12 @@
 require 'test/unit'
 
+puts "Requested AR VER: #{ENV['AR_VERSION']}"
+gem 'activerecord', ENV['AR_VERSION']
+
 require 'rubygems'
 require 'active_record'
+
+puts "Activated AR VER: #{ActiveRecord::VERSION::STRING}"
 
 $:.unshift File.dirname(__FILE__) + '/../lib'
 require File.dirname(__FILE__) + '/../init'
