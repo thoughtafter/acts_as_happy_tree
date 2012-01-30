@@ -69,6 +69,10 @@ module ActiveRecord
               nodes
             end
 
+            def self.parent_key
+              "#{configuration[:foreign_key]}"
+            end
+
             validates_each "#{configuration[:foreign_key]}" do |record, attr, value|
               if value
                 if record.id == value
@@ -80,6 +84,23 @@ module ActiveRecord
             end
           EOV
         end
+
+        # AR >= 3.2 only
+        def pluck_parent_id_of(node_id)
+          where(:id=>node_id).pluck(parent_key).first
+        end
+
+        # AR >= 3.0 only
+        def select_parent_id_of(node_id)
+          where(:id=>node_id).select(parent_key).first[parent_key]
+        end
+
+        if ActiveRecord::Base.respond_to?(:pluck)
+          alias :parent_id_of :pluck_parent_id_of
+        else
+          alias :parent_id_of :select_parent_id_of
+        end
+
       end
 
       module InstanceMethods
@@ -89,7 +110,7 @@ module ActiveRecord
         # root.root? # => true
         # child1.root? # => false
         #
-        # 0 DB calls
+        # no DB access
         def root?
           tree_parent_key.nil?
         end
@@ -99,7 +120,7 @@ module ActiveRecord
         # root.child? # => false
         # child1.child? # => true
         #
-        # 0 DB calls
+        # no DB access
         def child?
           !tree_parent_key.nil?
         end
@@ -109,7 +130,7 @@ module ActiveRecord
         # root.parent? # => true
         # subchild1.parent? # => false
         #
-        # 1 DB call, no fields retrived
+        # 1 DB SELECT, no fields selected
         def parent?
           children.exists?
         end
@@ -119,7 +140,7 @@ module ActiveRecord
         # root.leaf? # => false
         # subchild1.leaf? # => true
         #
-        # 1 DB call, no fields retrived
+        # 1 DB SELECT, no fields selected
         def leaf?
           !children.exists?
         end
@@ -129,11 +150,14 @@ module ActiveRecord
         # root.ancestor_of?(child1) # => true
         # child1.ancestor_of?(root) # => false
         #
-        # 1 DB call per level examined, only retrieves "parent_id" in each call
+        # 1 DB SELECT per level examined, only selects "parent_id"
+        # AR <  3.2 = 1 AR object per level examined
+        # AR >= 3.2 = no AR objects
         def ancestor_of?(node)
-          until node.tree_parent_key.nil? do
-            return true if node.tree_parent_key == id
-            node = self.class.where(:id=>node.tree_parent_key).select(tree_parent_key_name).first
+          key = node.tree_parent_key
+          until key.nil? do
+            return true if key == id
+            key = self.class.parent_id_of(key)
           end
           return false
         end
@@ -143,10 +167,10 @@ module ActiveRecord
         # root.descendant_of?(child1) # => false
         # child1.descendant_of?(root) # => true
         #
-        # 1 DB call per level examined, only retrieves "parent_id" in each call
-        #
         # calls ancestor_of? as:
         #   node1.ancestor_of(node2) == node2.descendant_of(node1)
+        #
+        # same performance of ancestor_of?
         def descendant_of?(node)
           node.ancestor_of?(self)
         end
@@ -159,10 +183,45 @@ module ActiveRecord
           nodes << node = node.parent until node.parent.nil? and return nodes
         end
 
-        # Returns the root node of the tree.
+        # Returns list of ancestor ids, starting from parent until root.
+        #
+        #   subchild1.ancestors # => [child1.id, root.id]
+        #
+        # 1 DB SELECT per ancestor, only selects "parent_id"
+        # AR <  3.2 = 1 AR object per ancestor
+        # AR >= 3.2 = 0 AR objects
+        def ancestor_ids
+          key, node_ids = tree_parent_key, []
+          until key.nil? do
+            node_ids << key
+            key = self.class.parent_id_of(key)
+          end
+          return node_ids
+        end
+
+        # Returns the root node of the current node
+        # no DB access if node is root
+        # otherwise use root_id function which is optimized
+        # same performance as root_id
+        # other acts_as_tree variants select all fields and instantiate all objects
         def root
-          node = self
-          node = node.parent until node.parent.nil? and return node
+          root? ? self : self.class.find(root_id)
+        end
+
+        # Returns the root id of the current node
+        # no DB access if node is root
+        # otherwise use root_id function which is optimized
+        # 1 DB SELECT per ancestor, only selects "parent_id"
+        # AR <  3.2 = 1 AR object per ancestor
+        # AR >= 3.2 = 1 AR object total
+        def root_id
+          node_id = id
+          key = tree_parent_key
+          until key.nil? do
+            node_id = key
+            key = self.class.parent_id_of(key)
+          end
+          return node_id
         end
 
         # Returns all siblings of the current node.
@@ -316,7 +375,7 @@ module ActiveRecord
       protected
 
         def tree_parent_key_name
-          reflections[:parent].options[:foreign_key]
+          self.class.parent_key
         end
 
         def tree_parent_key
