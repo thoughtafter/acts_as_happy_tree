@@ -269,29 +269,47 @@ class TreeTest < Test::Unit::TestCase
     assert_equal [@child1_child.id], @root_child1.child_ids
   end
 
+  def do_test_descendants_dfs(method)
+    assert_equal [@root_child1, @child1_child, @root_child2], @root1.send(method)
+    assert_equal [@child1_child], @root_child1.send(method)
+  end
+
   def test_descendants
-    assert_equal [@root_child1, @child1_child, @root_child2], @root1.descendants
-    assert_equal [@child1_child], @root_child1.descendants
+    do_test_descendants_dfs('descendants')
   end
 
   def test_descendants_dfs
-    assert_equal [@root_child1, @child1_child, @root_child2], @root1.descendants_dfs
-    assert_equal [@child1_child], @root_child1.descendants_dfs
+    do_test_descendants_dfs('descendants_dfs')
+  end
+
+  def test_descendants_dfs_rec
+    do_test_descendants_dfs('descendants_dfs_rec')
+  end
+
+  def do_test_descendants_bfs(method)
+    assert_equal [@root_child1, @root_child2, @child1_child], @root1.send(method)
+    assert_equal [@child1_child], @root_child1.send(method)
   end
 
   def test_descendants_bfs
-    assert_equal [@root_child1, @root_child2, @child1_child], @root1.descendants_bfs
-    assert_equal [@child1_child], @root_child1.descendants_bfs
+    do_test_descendants_bfs('descendants_bfs')
+  end
+
+  def test_descendants_bfs_rec
+    do_test_descendants_bfs('descendants_bfs_rec')
+  end
+
+  def do_test_self_and_descendants_dfs(method)
+    assert_equal [@root1, @root_child1, @child1_child, @root_child2], @root1.send(method)
+    assert_equal [@root_child1, @child1_child], @root_child1.send(method)
   end
 
   def test_self_and_descendants
-    assert_equal [@root1, @root_child1, @child1_child, @root_child2], @root1.self_and_descendants
-    assert_equal [@root_child1, @child1_child], @root_child1.self_and_descendants
+    do_test_self_and_descendants_dfs('self_and_descendants')
   end
 
   def test_self_and_descendants_dfs
-    assert_equal [@root1, @root_child1, @child1_child, @root_child2], @root1.self_and_descendants_dfs
-    assert_equal [@root_child1, @child1_child], @root_child1.self_and_descendants_dfs
+    do_test_self_and_descendants_dfs('self_and_descendants_dfs')
   end
 
   def test_self_and_descendants_bfs
@@ -299,19 +317,36 @@ class TreeTest < Test::Unit::TestCase
     assert_equal [@root_child1, @child1_child], @root_child1.self_and_descendants_bfs
   end
 
+  def do_test_descendant_ids_dfs(method)
+    assert_equal [@root_child1, @child1_child, @root_child2].map(&:id),
+      @root1.send(method)
+    assert_equal [@child1_child].map(&:id), @root_child1.send(method)
+  end
+
   def test_descendant_ids
-    assert_equal [@root_child1, @child1_child, @root_child2].map(&:id), @root1.descendant_ids
-    assert_equal [@child1_child].map(&:id), @root_child1.descendant_ids
+    do_test_descendant_ids_dfs('descendant_ids')
   end
 
   def test_descendant_ids_dfs
-    assert_equal [@root_child1, @child1_child, @root_child2].map(&:id), @root1.descendant_ids_dfs
-    assert_equal [@child1_child].map(&:id), @root_child1.descendant_ids_dfs
+    do_test_descendant_ids_dfs('descendant_ids_dfs')
+  end
+
+  def test_descendant_ids_dfs_rec
+    do_test_descendant_ids_dfs('descendant_ids_dfs_rec')
+  end
+
+  def do_test_descendant_ids_bfs(method)
+    assert_equal [@root_child1, @root_child2, @child1_child].map(&:id), 
+      @root1.send(method)
+    assert_equal [@child1_child].map(&:id), @root_child1.send(method)
   end
 
   def test_descendant_ids_bfs
-    assert_equal [@root_child1, @root_child2, @child1_child].map(&:id), @root1.descendant_ids_bfs
-    assert_equal [@child1_child].map(&:id), @root_child1.descendant_ids_bfs
+    do_test_descendant_ids_bfs('descendant_ids_bfs')
+  end
+
+  def test_descendant_ids_bfs_rec
+    do_test_descendant_ids_bfs('descendant_ids_bfs_rec')
   end
 
   def descendants_count(counter)
@@ -331,10 +366,17 @@ class TreeTest < Test::Unit::TestCase
     descendants_count(:descendants_count_dfs)
   end
 
-  def test_descendants_count
+  def test_descendants_count_bfs
     descendants_count(:descendants_count_bfs)
   end
 
+  def test_descendants_count_dfs_rec
+    descendants_count(:descendants_count_dfs_rec)
+  end
+
+  def test_descendants_count_bfs_rec
+    descendants_count(:descendants_count_bfs_rec)
+  end
 end
 
 class TreeTestWithCounterCache < Test::Unit::TestCase

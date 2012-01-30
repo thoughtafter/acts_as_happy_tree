@@ -50,6 +50,8 @@ module ActiveRecord
 
           class_eval <<-EOV
             include ActiveRecord::Acts::HappyTree::InstanceMethods
+            include ActiveRecord::Acts::HappyTree::BreadthFirst
+            include ActiveRecord::Acts::HappyTree::DepthFirst
 
             scope :roots, :conditions => "#{configuration[:foreign_key]} IS NULL", :order => #{configuration[:order].nil? ? "nil" : %Q{"#{configuration[:order]}"}}
 
@@ -90,20 +92,80 @@ module ActiveRecord
           where(:id=>node_id).pluck(parent_key).first
         end
 
+        def pluck_child_ids_of(node_ids, options={})
+          where(parent_key=>node_ids).apply_finder_options(options).pluck(:id)
+        end
+
         # AR >= 3.0 only
         def select_parent_id_of(node_id)
           where(:id=>node_id).select(parent_key).first[parent_key]
         end
 
+        def select_child_ids_of(node_ids, options={})
+          where(parent_key=>node_ids).apply_finder_options(options.merge(:select=>:id)).map(&:id)
+        end
+
         if ActiveRecord::Base.respond_to?(:pluck)
           alias :parent_id_of :pluck_parent_id_of
+          alias :child_ids_of :pluck_child_ids_of
         else
           alias :parent_id_of :select_parent_id_of
+          alias :child_ids_of :select_child_ids_of
+        end
+
+        def children_of(node_ids, options={})
+          where(parent_key=>node_ids).apply_finder_options(options)
         end
 
       end
 
       module InstanceMethods
+
+        # Returns list of ancestors, starting from parent until root.
+        #
+        #   subchild1.ancestors # => [child1, root]
+        def ancestors
+          node, nodes = self, []
+          nodes << node = node.parent until node.parent.nil? and return nodes
+        end
+
+        # Returns the root node of the tree.
+        def root_classic
+          node = self
+          node = node.parent until node.parent.nil? and return node
+        end
+
+        # Returns all siblings of the current node.
+        #
+        #   subchild1.siblings # => [subchild2]
+        def siblings
+          self_and_siblings - [self]
+        end
+
+        # Returns all siblings and a reference to the current node.
+        #
+        #   subchild1.self_and_siblings # => [subchild1, subchild2]
+        def self_and_siblings
+          parent ? parent.children : self.class.roots
+        end
+
+        # Returns a flat list of the descendants of the current node.
+        #
+        #   root.descendants # => [child1, subchild1, subchild2]
+        def descendants(node=self)
+          nodes = []
+          nodes << node unless node == self
+
+          node.children.each do |child|
+            nodes += descendants(child)
+          end
+
+          nodes.compact
+        end
+
+        def childless
+          self.descendants.collect{|d| d.children.empty? ? d : nil}.compact
+        end
 
         # Returns true if this instance has no parent (aka root node)
         #
@@ -175,14 +237,6 @@ module ActiveRecord
           node.ancestor_of?(self)
         end
 
-        # Returns list of ancestors, starting from parent until root.
-        #
-        #   subchild1.ancestors # => [child1, root]
-        def ancestors
-          node, nodes = self, []
-          nodes << node = node.parent until node.parent.nil? and return nodes
-        end
-
         # Returns list of ancestor ids, starting from parent until root.
         #
         #   subchild1.ancestors # => [child1.id, root.id]
@@ -197,15 +251,6 @@ module ActiveRecord
             key = self.class.parent_id_of(key)
           end
           return node_ids
-        end
-
-        # Returns the root node of the current node
-        # no DB access if node is root
-        # otherwise use root_id function which is optimized
-        # same performance as root_id
-        # other acts_as_tree variants select all fields and instantiate all objects
-        def root
-          root? ? self : self.class.find(root_id)
         end
 
         # Returns the root id of the current node
@@ -224,143 +269,32 @@ module ActiveRecord
           return node_id
         end
 
-        # Returns all siblings of the current node.
-        #
-        #   subchild1.siblings # => [subchild2]
-        def siblings
-          self_and_siblings - [self]
+        # Returns the root node of the current node
+        # no DB access if node is root
+        # otherwise use root_id function which is optimized
+        # same performance as root_id
+        # other acts_as_tree variants select all fields and instantiate all objects
+        def root
+          root? ? self : self.class.find(root_id)
         end
 
-        # Returns all siblings and a reference to the current node.
-        #
-        #   subchild1.self_and_siblings # => [subchild1, subchild2]
-        def self_and_siblings
-          parent ? parent.children : self.class.roots
+        # return self and descendants
+        # provided for compatibility with other tree implementations
+        # expected order is DFS
+        def self_and_descendants(options={})
+          self_and_descendants_dfs(options)
         end
 
-        # Returns a flat list of the descendants of the current node.
-        #
-        #   root.descendants # => [child1, subchild1, subchild2]
-        def descendants(node=self)
-          nodes = []
-          nodes << node unless node == self
-
-          node.children.each do |child|
-            nodes += descendants(child)
-          end
-
-          nodes.compact
+        # return an array of descendant ids
+        # expected order is DFS
+        def descendant_ids(options={})
+          descendant_ids_dfs(options)
         end
 
-        # Return all descendants and current node, this is present for
-        # completeness with other tree implementations
-        def self_and_descendants_bfs(options={})
-          [self] + descendants_bfs(options)
-        end
-
-        # Return all descendants and current node, this is present for
-        # completeness with other tree implementations
-        def self_and_descendants_dfs(options={})
-          [self] + descendants_dfs(options)
-        end
-
-        # Use self_and_descendants_dfs for self_and_descendants
-        alias :self_and_descendants :self_and_descendants_dfs
-
-        # Returns a flat list of the descendants of the current node using a
-        # depth-first search http://en.wikipedia.org/wiki/Depth-first_search
-        #
-        # root.descendants_dfs # => [child1, subchild1, subchild2, child2]
-        # options can be passed such as:
-        #   select - only return specified attributes, must include "parent_id"
-        #   conditions - only return matching objects, will not return children
-        #                of any unmatched objects
-        #   order - will set the order of each set of children
-        #   limit - will limit max number of children for each parent
-        #
-        # this is a recursive method
-        # the number of DB calls == number of descendants + 1
-        def descendants_dfs(options={})
-          children.all(options).map do |child|
-            [child] + child.descendants_dfs(options)
-          end.flatten
-        end
-
-        # Returns a flat list of the descendants of the current node using a
-        # breadth-first search http://en.wikipedia.org/wiki/Breadth-first_search
-        #
-        #   root.descendants_bfs # => [child1, child2, subchild1, subchild2]
-        # options can be passed such as:
-        #   select - only return specified attributes, must include id
-        #   conditions - only return matching objects, will not return children
-        #                of any unmatched objects
-        #   order - will set the order of each set of children
-        #   limit - will limit max number of children for each parent
-        #
-        # number of DB calls == number of levels
-        # for the example there will be 3 DB calls
-        def descendants_bfs(options={})
-          level_children = [self]
-          all_descendants = []
-          until level_children.empty?
-            ids = level_children.map(&:id)
-            level_children = self.class.where(:parent_id=>ids).all(options)
-            all_descendants += level_children
-          end
-          all_descendants
-        end
-
-        # Returns a flat list of the descendant ids of the current node using a
-        # depth-first search http://en.wikipedia.org/wiki/Depth-first_search
-        # DB calls = number of descendants + 1
-        # only id field returned in query
-        def descendant_ids_dfs(options={})
-          descendants_dfs(options.merge(:select=>'id')).map(&:id)
-        end
-
-        # Returns a flat list of the descendant ids of the current node using a
-        # breadth-first search http://en.wikipedia.org/wiki/Breadth-first_search
-        # DB calls = level of tree
-        # only id field returned in query
-        def descendant_ids_bfs(options={})
-          descendants_bfs(options.merge(:select=>'id')).map(&:id)
-        end
-
-        # Use descendant_ids_dfs for descendant_ids because of ability to
-        # use select to prevent extraneous fields from returning
-        alias :descendant_ids :descendant_ids_dfs
-
-        # Return the number of descendants, roughly equivalent to:
-        #   descendants_bfs.count
-        # DB calls = level of tree
-        # only id field selected in query
-        def descendants_count_bfs(options={})
-          level_ids = [id]
-          count = 0
-          until level_ids.empty?
-            nodes = self.class.where(:parent_id=>level_ids)
-            level_ids = nodes.all(options.merge(:select=>'id')).map(&:id)
-            count += level_ids.count
-          end
-          return count
-        end
-
-        # Return the number of descendants, roughly equivalent to:
-        #   descendants_dfs.count
-        # DB calls = # of descendants + 1
-        # only id field selected in query
-        def descendants_count_dfs(options={})
-          children.all(options.merge(:select=>'id')).reduce(0) do |count, child|
-            count += 1 + child.descendants_count_dfs(options)
-          end
-        end
-
-        # Use descendants_count_bfs for descendants_count because it should use
-        # fewer SQL queries and thus be faster
-        alias :descendants_count :descendants_count_bfs
-
-        def childless
-          self.descendants.collect{|d| d.children.empty? ? d : nil}.compact
+        # Use BFS for descendants_count because it should use fewer SQL queries
+        # and thus be faster
+        def descendants_count(options={})
+          descendants_count_bfs(options)
         end
 
       private
